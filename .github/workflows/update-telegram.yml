@@ -1,0 +1,31 @@
+name: Update live prices (Telegram)
+
+on:
+  schedule:
+    # Every hour during Tehran market hours (06:00-22:00 IRST = 02:30-18:30 UTC)
+    - cron: '18 3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch Telegram live prices (dollar, tether)
+        env:
+          DASHBOARD_DATA_PATH: data/dashboard_data.json
+        run: python3 build_data.py --live-only --only=telegram
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "dashboard-bot"
+          git config user.email "dashboard-bot@users.noreply.github.com"
+          git add data/dashboard_data.json
+          git diff --cached --quiet || git commit -m "telegram live $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

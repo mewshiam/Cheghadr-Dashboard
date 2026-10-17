@@ -1,10 +1,10 @@
-name: Update dashboard data
+name: Update live prices (tgju)
 
 on:
   schedule:
     # Every 2 hours during Tehran market hours (06:00-22:00 IRST = 02:30-18:30 UTC)
     - cron: '48 2,4,6,8,10,12,14,16,18 * * *'
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:
 
 jobs:
   update:
@@ -17,15 +17,15 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Fetch live prices
+      - name: Fetch tgju live prices (gold, coins, ons)
         env:
           DASHBOARD_DATA_PATH: data/dashboard_data.json
-        run: python3 build_data.py --live-only
+        run: python3 build_data.py --live-only --only=tgju
 
       - name: Commit and push if changed
         run: |
           git config user.name "dashboard-bot"
           git config user.email "dashboard-bot@users.noreply.github.com"
           git add data/dashboard_data.json
-          git diff --cached --quiet || git commit -m "live prices $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git diff --cached --quiet || git commit -m "tgju live $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push

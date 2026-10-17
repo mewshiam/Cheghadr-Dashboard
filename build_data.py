@@ -315,17 +315,19 @@ def _gregorian_to_jalali(gy, gm, gd):
         return (jy, jm_, jd_)
     return d2j(g2d(gy, gm, gd))
 
-def fetch_live(latest_daily, prev_closes=None):
+def fetch_live(latest_daily, prev_closes=None, only=None):
     """Live prices. Dollar & tether prefer Telegram channels (5-sample daily
-    average); others scraped from tgju.org main page. Returns dict key->info."""
+    average); others scraped from tgju.org main page. Returns dict key->info.
+    only='telegram' skips tgju; only='tgju' skips Telegram."""
     prev_closes = prev_closes or {}
     live = {}
     # --- Telegram first (dollar, tether) ---
-    try:
-        tg = fetch_telegram_live()
-    except Exception as e:
-        print('telegram live failed:', e)
-        tg = {}
+    tg = {}
+    if only in (None, 'telegram'):
+        try:
+            tg = fetch_telegram_live()
+        except Exception as e:
+            print('telegram live failed:', e)
     for key, info in tg.items():
         prev = prev_closes.get(key)
         chg = round((info['price'] - prev) / prev * 100, 2) if prev else 0.0
@@ -334,15 +336,23 @@ def fetch_live(latest_daily, prev_closes=None):
                      'source': 'telegram', 'samples': info['samples'],
                      'avg_price': info.get('avg_price')}
     # --- tgju main page for the rest (and as fallback) ---
+    # --- tgju main page for the rest (and as fallback) ---
+    if only in (None, 'tgju'):
+        live.update(_fetch_tgju_live(latest_daily, set(live)))
+    return live
+
+def _fetch_tgju_live(latest_daily, skip_keys):
+    """Scrape tgju.org main page. skip_keys: already covered (e.g. by Telegram)."""
     req = urllib.request.Request('https://www.tgju.org/', headers={
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
     with urllib.request.urlopen(req, timeout=60) as r:
         html = r.read().decode('utf-8', errors='ignore')
+    live = {}
     ly, lm, ld = map(int, latest_daily.split('/'))
     ty, tm, td = jalali_plus_one(ly, lm, ld)
     today_j = f'{ty}/{tm:02d}/{td:02d}'
     for key, cfg in ASSETS.items():
-        if key in live:
+        if key in skip_keys or key in live or key in TELEGRAM_CHANNELS:
             continue  # already covered by Telegram
         m = re.search(r'<tr[^>]*data-market-row="' + cfg['symbol'] + r'".*?</tr>',
                       html, re.S)
@@ -379,7 +389,6 @@ def fetch_live(latest_daily, prev_closes=None):
             live['ons'] = {'price': round(oprice, 2), 'changePct': round(ochg, 2),
                            'time': vals[4], 'date': resolve_live_date(vals[4], today_j), 'unit': 'usd'}
     return live
-
 def main():
     out = {'assets': {}, 'meta': {'source': 'tgju.org API (direct scrape)'}}
     latest = ''
@@ -412,6 +421,11 @@ if __name__ == '__main__':
     import sys
     if '--live-only' in sys.argv:
         # Fast mode: only refresh live prices, report if anything changed
+        # --only=telegram|tgju limits to one source (merges, doesn't wipe others)
+        only = None
+        for a in sys.argv:
+            if a.startswith('--only='):
+                only = a.split('=', 1)[1]
         d = json.load(open(DATA_PATH))
         latest = d['meta']['updated']
         old_live = json.dumps(d.get('live', {}), sort_keys=True)
@@ -420,7 +434,8 @@ if __name__ == '__main__':
             for key, a in d['assets'].items():
                 if len(a['daily']) >= 2:
                     prev_closes[key] = a['daily'][-2]['p']
-            d['live'] = fetch_live(latest, prev_closes)
+            fresh = fetch_live(latest, prev_closes, only=only)
+            d.setdefault('live', {}).update(fresh)
         except Exception as e:
             print('live scrape failed:', e)
             sys.exit(1)

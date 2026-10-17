@@ -8,7 +8,7 @@
 [![TGJU Update](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-data.yml/badge.svg)](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-data.yml)
 [![Daily Rebuild](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/daily-rebuild.yml/badge.svg)](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/daily-rebuild.yml)
 
-[🌐 مشاهده داشبورد](https://cheghadr-dashboard.pages.dev) · [📖 مستندات](#-مستندات) · [🚀 استقرار](#-استقرار-روی-cloudflare-pages)
+[🌐 مشاهده داشبورد](https://cheghadr.pages.dev) · [📖 مستندات](#-مستندات) · [🚀 استقرار](#-استقرار-روی-cloudflare-pages)
 
 </div>
 

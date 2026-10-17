@@ -11,6 +11,11 @@
     if (n === null || n === undefined || isNaN(n)) return '—';
     return Number(n).toLocaleString('fa-IR');
   }
+  function faYear(y) {
+    // years never use thousands separators: ۱۴۰۵ not ۱٬۴۰۵
+    if (y === null || y === undefined || isNaN(y)) return '—';
+    return Number(y).toLocaleString('fa-IR', { useGrouping: false });
+  }
   function faPct(x) {
     if (x === null || x === undefined || isNaN(x)) return '—';
     var sign = x > 0 ? '+' : '';
@@ -165,7 +170,7 @@
     var seenYears = {};
     for (var k = 0; k < data.length; k += Math.max(1, Math.floor(data.length / 8))) {
       var y = data[k].d.split('/')[0];
-      if (!seenYears[y]) { seenYears[y] = 1; ctx.fillText(fa(y), X(k), h - 8); }
+      if (!seenYears[y]) { seenYears[y] = 1; ctx.fillText(faYear(y), X(k), h - 8); }
     }
 
     // min/max labels
@@ -198,7 +203,7 @@
     var grid = el('month-grid');
     var years = asset.years || [];
     var curYear = Math.max.apply(null, years);
-    el('month-grid-title').textContent = 'عملکرد ماه‌های سال ' + fa(curYear);
+    el('month-grid-title').textContent = 'عملکرد ماه‌های سال ' + faYear(curYear);
     var byMonth = {};
     (asset.monthly || []).forEach(function (m) { if (m.y === curYear) byMonth[m.m] = m; });
     var names = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
@@ -222,7 +227,7 @@
     var tbody = document.querySelector('#weekly-table tbody');
     var html = '';
     weeks.forEach(function (w) {
-      html += '<tr><td>' + fa(w.y) + '/' + fa(w.m) + ' · هفته ' + fa(w.w) +
+      html += '<tr><td>' + faYear(w.y) + '/' + fa(w.m) + ' · هفته ' + fa(w.w) +
         ' <span style="color:var(--muted)">(' + w.range + ')</span></td>' +
         '<td class="num">' + fa(w.avg) + '</td>' +
         '<td class="' + dirClass(w.changePct) + '">' + faPct(w.changePct) + '</td></tr>';
@@ -236,8 +241,8 @@
     var from = el('cmp-from'), to = el('cmp-to');
     from.innerHTML = ''; to.innerHTML = '';
     years.forEach(function (y) {
-      var o1 = document.createElement('option'); o1.value = y; o1.textContent = fa(y); from.appendChild(o1);
-      var o2 = document.createElement('option'); o2.value = y; o2.textContent = fa(y); to.appendChild(o2);
+      var o1 = document.createElement('option'); o1.value = y; o1.textContent = faYear(y); from.appendChild(o1);
+      var o2 = document.createElement('option'); o2.value = y; o2.textContent = faYear(y); to.appendChild(o2);
     });
     if (years.length) {
       from.value = years[0];
@@ -261,8 +266,8 @@
     if (!first || !last) { box.innerHTML = '<p style="grid-column:1/-1;color:var(--muted)">داده کافی نیست.</p>'; return; }
     var chg = (last.p - first.p) / first.p * 100;
     box.innerHTML =
-      '<div class="compare-box"><div class="c-label">ابتدای ' + fa(y1) + '</div><div class="c-value">' + fa(first.p) + '</div></div>' +
-      '<div class="compare-box"><div class="c-label">انتهای ' + fa(y2) + '</div><div class="c-value">' + fa(last.p) + '</div></div>' +
+      '<div class="compare-box"><div class="c-label">ابتدای ' + faYear(y1) + '</div><div class="c-value">' + fa(first.p) + '</div></div>' +
+      '<div class="compare-box"><div class="c-label">انتهای ' + faYear(y2) + '</div><div class="c-value">' + fa(last.p) + '</div></div>' +
       '<div class="compare-box"><div class="c-label">تغییر کل دوره</div><div class="c-value ' + dirClass(chg) + '">' + faPct(chg) + '</div></div>';
   }
 

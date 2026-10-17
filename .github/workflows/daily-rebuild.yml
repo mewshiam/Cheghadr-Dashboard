@@ -2,8 +2,8 @@ name: Daily full history rebuild
 
 on:
   schedule:
-    # 08:15 Tehran (04:45 UTC) daily
-    - cron: '45 4 * * *'
+    # 00:00 Tehran (20:30 UTC previous day) daily
+    - cron: '30 20 * * *'
   workflow_dispatch:
 
 jobs:

@@ -75,7 +75,8 @@
       if (!a) return;
       var b = document.createElement('button');
       b.className = 'tab' + (key === state.asset ? ' active' : '');
-      b.textContent = a.name;
+      b.type = 'button';
+      b.innerHTML = '<span class="tab-pill">' + a.name + '</span>';
       b.dataset.asset = key;
       b.addEventListener('click', function () { selectAsset(key); });
       bar.appendChild(b);
@@ -84,7 +85,8 @@
     if (state.data.ons) {
       var ob = document.createElement('button');
       ob.className = 'tab' + (state.asset === 'ons' ? ' active' : '');
-      ob.textContent = state.data.ons.name || 'انس طلا';
+      ob.type = 'button';
+      ob.innerHTML = '<span class="tab-pill">' + (state.data.ons.name || 'انس طلا') + '</span>';
       ob.dataset.asset = 'ons';
       ob.addEventListener('click', function () { selectAsset('ons'); });
       bar.appendChild(ob);
@@ -403,8 +405,9 @@
     ctx.clearRect(0, 0, w, h);
 
     var css = getComputedStyle(document.body);
-    var muted = css.getPropertyValue('--muted').trim() || '#6b7280';
-    var gridC = css.getPropertyValue('--border').trim() || '#e5e7eb';
+    var accent = css.getPropertyValue('--accent').trim() || '#2e7d46';
+    var muted = css.getPropertyValue('--muted').trim() || '#414941';
+    var gridC = css.getPropertyValue('--border').trim() || '#c1c9bb';
 
     var vals = data.map(function (d) { return d.p; });
     var min = Math.min.apply(null, vals.concat([0]));
@@ -430,17 +433,23 @@
     ctx.lineTo(X(0), Y(0));
     ctx.closePath();
     var grad = ctx.createLinearGradient(0, padT, 0, h - padB);
-    grad.addColorStop(0, 'rgba(234,88,12,0.3)');
-    grad.addColorStop(1, 'rgba(234,88,12,0.03)');
+    grad.addColorStop(0, hexA(accent, 0.3));
+    grad.addColorStop(1, hexA(accent, 0.03));
     ctx.fillStyle = grad; ctx.fill();
 
-    // line with per-point coloring by level
+    // line with per-point coloring by M3 level tokens
     ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+    var lvlColors = {
+      'lvl-neg': css.getPropertyValue('--m3-lvl-neg').trim() || '#2f6fde',
+      'lvl-low': css.getPropertyValue('--m3-lvl-low').trim() || '#2e9e5b',
+      'lvl-mid': css.getPropertyValue('--m3-lvl-mid').trim() || '#c07a00',
+      'lvl-high': css.getPropertyValue('--m3-lvl-high').trim() || '#e06a00',
+      'lvl-max': css.getPropertyValue('--m3-lvl-max').trim() || '#d63a3a'
+    };
     var started = false;
     for (var j = 0; j < data.length; j++) {
       var lvl = bubbleLevel(vals[j]);
-      ctx.strokeStyle = lvl === 'lvl-neg' ? '#2563eb' : lvl === 'lvl-low' ? '#16a34a' :
-        lvl === 'lvl-mid' ? '#d97706' : lvl === 'lvl-high' ? '#ea580c' : '#dc2626';
+      ctx.strokeStyle = lvlColors[lvl] || lvlColors['lvl-mid'];
       ctx.beginPath();
       if (j === 0) { ctx.moveTo(X(0), Y(vals[0])); }
       else { ctx.moveTo(X(j - 1), Y(vals[j - 1])); ctx.lineTo(X(j), Y(vals[j])); }

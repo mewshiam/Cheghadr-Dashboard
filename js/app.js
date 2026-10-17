@@ -2,7 +2,14 @@
 (function () {
   'use strict';
 
-  var DATA_URL = 'data/dashboard_data.json';
+  /* Data comes from the repo itself (like an API): GitHub raw serves the latest
+     committed dashboard_data.json within minutes, so data updates do NOT
+     require a Pages redeploy. Local file is the offline fallback. */
+  var CACHE_BUST = Math.floor(Date.now() / 600000); // 10-min buckets
+  var DATA_URLS = [
+    'https://raw.githubusercontent.com/mewshiam/Cheghadr-Dashboard/main/data/dashboard_data.json?t=' + CACHE_BUST,
+    'data/dashboard_data.json'
+  ];
   var ASSET_ORDER = ['dollar', 'gold18', 'sekee', 'sekeb', 'nim', 'rob', 'gerami', 'tether'];
   var state = { data: null, asset: 'dollar' };
 
@@ -24,10 +31,20 @@
   function dirClass(x) { return x > 0 ? 'up' : (x < 0 ? 'down' : ''); }
   function el(id) { return document.getElementById(id); }
 
+  function loadData(urls, idx) {
+    idx = idx || 0;
+    return fetch(urls[idx]).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).catch(function (err) {
+      if (idx + 1 < urls.length) return loadData(urls, idx + 1);
+      throw err;
+    });
+  }
+
   /* ---------- boot ---------- */
   document.addEventListener('DOMContentLoaded', function () {
-    fetch(DATA_URL)
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    loadData(DATA_URLS)
       .then(function (data) {
         state.data = data;
         renderMeta();

@@ -182,6 +182,34 @@ body {
   color: var(--muted);
 }
 .live-avg strong { color: var(--text); }
+/* dollar 3-part: naghdi / fardaei / avg */
+.dollar-parts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.dollar-part {
+  background: var(--card-alt, rgba(128,128,128,.08));
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.dp-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.dp-value {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+}
+@media (max-width: 480px) {
+  .dollar-parts { grid-template-columns: 1fr; gap: 6px; }
+}
 .live-meta {
   margin-top: 10px;
   font-size: 0.8rem;

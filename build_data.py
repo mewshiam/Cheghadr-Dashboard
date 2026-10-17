@@ -207,15 +207,19 @@ def _parse_channel_messages(html):
     return out
 
 def _extract_tg_price(asset_key, txt):
-    """Returns (kind, price_toman) or (None, None)."""
+    """Returns (kind, price_toman) or (None, None).
+    Dollar kinds: naghdi_* (cash), fardaei_* (futures), summary_last."""
     if asset_key == 'dollar':
         if 'پایان معاملات' in txt:
             m = re.search(r'آخرین معامله\s*:?\s*`?([\d,]+)`?', txt)
             return ('summary_last', int(m.group(1).replace(',', ''))) if m else (None, None)
-        if 'دلار فردایی' in txt and ('فروش' in txt or 'خرید' in txt or 'معامله شد' in txt):
+        is_naghdi = 'دلار نقدی' in txt
+        is_fardaei = 'دلار فردایی' in txt
+        if (is_naghdi or is_fardaei) and ('فروش' in txt or 'خرید' in txt or 'معامله شد' in txt):
             m = re.search(r'([\d,]{5,})', txt)
             if m:
-                kind = 'sell' if 'فروش' in txt else ('buy' if 'خرید' in txt else 'traded')
+                side = 'sell' if 'فروش' in txt else ('buy' if 'خرید' in txt else 'traded')
+                kind = ('naghdi_' if is_naghdi else 'fardaei_') + side
                 return (kind, int(m.group(1).replace(',', '')))
     elif asset_key == 'tether':
         m = re.search(r'تتر\s*\(USDT\):\s*`?([\d,]+)`?', txt)
@@ -245,6 +249,9 @@ def fetch_telegram_live():
                 samples.append((dt, price, kind))
         if not samples:
             continue
+        if key == 'dollar':
+            result[key] = _dollar_telegram_summary(samples, today)
+            continue
         todays = [(dt, p) for dt, p, k in samples if dt.date() == today and k != 'summary_last']
         picked = []
         if todays:
@@ -272,6 +279,49 @@ def fetch_telegram_live():
             'source': 'telegram',
         }
     return result
+
+def _dollar_telegram_summary(samples, today):
+    """3-part dollar: naghdi (cash) latest, fardaei (futures) latest,
+    avg_naghdi (average of today's cash posts)."""
+    todays = [(dt, p, k) for dt, p, k in samples if dt.date() == today and k != 'summary_last']
+    naghdi_today = [(dt, p) for dt, p, k in todays if k.startswith('naghdi_')]
+    fardaei_today = [(dt, p) for dt, p, k in todays if k.startswith('fardaei_')]
+
+    def latest(lst):
+        return max(lst, key=lambda x: x[0]) if lst else (None, None)
+
+    naghdi_dt, naghdi_price = latest(naghdi_today)
+    fardaei_dt, fardaei_price = latest(fardaei_today)
+
+    # fallback to latest available sample of each type (any day)
+    if naghdi_price is None:
+        cands = [(dt, p) for dt, p, k in samples if k.startswith('naghdi_')]
+        naghdi_dt, naghdi_price = latest(cands)
+    if fardaei_price is None:
+        cands = [(dt, p) for dt, p, k in samples if k.startswith('fardaei_')]
+        fardaei_dt, fardaei_price = latest(cands)
+    # ultimate fallback: any latest sample
+    if naghdi_price is None and fardaei_price is None:
+        latest_dt, price, _ = max(samples, key=lambda x: x[0])
+        naghdi_dt, naghdi_price = latest_dt, price
+
+    avg_naghdi = round(sum(p for _, p in naghdi_today) / len(naghdi_today)) if naghdi_today else None
+
+    ref_dt = naghdi_dt or fardaei_dt
+    jy, jm, jd = _gregorian_to_jalali(ref_dt.year, ref_dt.month, ref_dt.day)
+    out = {
+        'price': naghdi_price,       # main: cash price
+        'price_naghdi': naghdi_price,
+        'price_fardaei': fardaei_price,
+        'avg_naghdi': avg_naghdi,    # average of today's cash posts
+        'samples': len(naghdi_today) + len(fardaei_today),
+        'time': ref_dt.strftime('%H:%M'),
+        'date_j': f'{jy}/{jm:02d}/{jd:02d}',
+        'source': 'telegram',
+    }
+    # keep legacy avg_price as day's cash average for compatibility
+    out['avg_price'] = avg_naghdi
+    return out
 
 def _gregorian_to_jalali(gy, gm, gd):
     """Jalaali algorithm -> (jy, jm, jd)."""
@@ -331,10 +381,15 @@ def fetch_live(latest_daily, prev_closes=None, only=None):
     for key, info in tg.items():
         prev = prev_closes.get(key)
         chg = round((info['price'] - prev) / prev * 100, 2) if prev else 0.0
-        live[key] = {'price': info['price'], 'changePct': chg,
-                     'time': info['time'], 'date': info['date_j'],
-                     'source': 'telegram', 'samples': info['samples'],
-                     'avg_price': info.get('avg_price')}
+        entry = {'price': info['price'], 'changePct': chg,
+                 'time': info['time'], 'date': info['date_j'],
+                 'source': 'telegram', 'samples': info['samples'],
+                 'avg_price': info.get('avg_price')}
+        # dollar 3-part: naghdi / fardaei / avg_naghdi
+        for f in ('price_naghdi', 'price_fardaei', 'avg_naghdi'):
+            if f in info:
+                entry[f] = info[f]
+        live[key] = entry
     # --- tgju main page for the rest (and as fallback) ---
     # --- tgju main page for the rest (and as fallback) ---
     if only in (None, 'tgju'):

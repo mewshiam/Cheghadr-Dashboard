@@ -74,9 +74,9 @@
       var a = state.data.assets[key];
       if (!a) return;
       var b = document.createElement('button');
-      b.className = 'tab' + (key === state.asset ? ' active' : '');
+      b.className = 'asset-tab' + (key === state.asset ? ' active' : '');
       b.type = 'button';
-      b.innerHTML = '<span class="tab-pill">' + a.name + '</span>';
+      b.textContent = a.name;
       b.dataset.asset = key;
       b.addEventListener('click', function () { selectAsset(key); });
       bar.appendChild(b);
@@ -84,9 +84,9 @@
     // 9th tab: gold ounce
     if (state.data.ons) {
       var ob = document.createElement('button');
-      ob.className = 'tab' + (state.asset === 'ons' ? ' active' : '');
+      ob.className = 'asset-tab' + (state.asset === 'ons' ? ' active' : '');
       ob.type = 'button';
-      ob.innerHTML = '<span class="tab-pill">' + (state.data.ons.name || 'انس طلا') + '</span>';
+      ob.textContent = state.data.ons.name || 'انس طلا';
       ob.dataset.asset = 'ons';
       ob.addEventListener('click', function () { selectAsset('ons'); });
       bar.appendChild(ob);
@@ -96,7 +96,7 @@
   function selectAsset(key) {
     state.asset = key;
     document.body.dataset.asset = key;
-    var tabs = document.querySelectorAll('.tab');
+    var tabs = document.querySelectorAll('.asset-tab');
     tabs.forEach(function (t) { t.classList.toggle('active', t.dataset.asset === key); });
     // hide conditional sections; each renderer unhides its own
     el('bubble-card').hidden = true;
@@ -119,7 +119,7 @@
       if (COIN_KEYS.indexOf(key) >= 0) renderBubble(key);
       if (key === 'gold18') renderGoldDecomp();
     }
-    var active = document.querySelector('.tab.active');
+    var active = document.querySelector('.asset-tab.active');
     if (active && active.scrollIntoView) active.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
 
@@ -182,9 +182,9 @@
     ctx.clearRect(0, 0, w, h);
 
     var css = getComputedStyle(document.body);
-    var accent = css.getPropertyValue('--accent').trim() || '#16a34a';
-    var muted = css.getPropertyValue('--muted').trim() || '#6b7280';
-    var gridC = css.getPropertyValue('--border').trim() || '#e5e7eb';
+    var accent = css.getPropertyValue('--brand').trim() || '#174d35';
+    var muted = css.getPropertyValue('--muted').trim() || '#59645d';
+    var gridC = css.getPropertyValue('--line').trim() || '#d3ddd5';
 
     var prices = data.map(function (d) { return d.p; });
     var min = Math.min.apply(null, prices), max = Math.max.apply(null, prices);
@@ -405,9 +405,9 @@
     ctx.clearRect(0, 0, w, h);
 
     var css = getComputedStyle(document.body);
-    var accent = css.getPropertyValue('--accent').trim() || '#2e7d46';
-    var muted = css.getPropertyValue('--muted').trim() || '#414941';
-    var gridC = css.getPropertyValue('--border').trim() || '#c1c9bb';
+    var accent = css.getPropertyValue('--brand').trim() || '#174d35';
+    var muted = css.getPropertyValue('--muted').trim() || '#59645d';
+    var gridC = css.getPropertyValue('--line').trim() || '#d3ddd5';
 
     var vals = data.map(function (d) { return d.p; });
     var min = Math.min.apply(null, vals.concat([0]));
@@ -440,11 +440,11 @@
     // line with per-point coloring by M3 level tokens
     ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
     var lvlColors = {
-      'lvl-neg': css.getPropertyValue('--m3-lvl-neg').trim() || '#2f6fde',
-      'lvl-low': css.getPropertyValue('--m3-lvl-low').trim() || '#2e9e5b',
-      'lvl-mid': css.getPropertyValue('--m3-lvl-mid').trim() || '#c07a00',
-      'lvl-high': css.getPropertyValue('--m3-lvl-high').trim() || '#e06a00',
-      'lvl-max': css.getPropertyValue('--m3-lvl-max').trim() || '#d63a3a'
+      'lvl-neg': css.getPropertyValue('--lvl-neg').trim() || '#2f6fde',
+      'lvl-low': css.getPropertyValue('--lvl-low').trim() || '#0b8250',
+      'lvl-mid': css.getPropertyValue('--lvl-mid').trim() || '#b97a00',
+      'lvl-high': css.getPropertyValue('--lvl-high').trim() || '#d96a00',
+      'lvl-max': css.getPropertyValue('--lvl-max').trim() || '#c12832'
     };
     var started = false;
     for (var j = 0; j < data.length; j++) {

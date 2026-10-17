@@ -1,32 +1,64 @@
-# داشبورد طلا و ارز — Cloudflare Pages
+<div dir="rtl" align="center">
 
-Persian RTL dashboard of gold & currency prices. Static site, no build step.
+# 📊 چقدر؟ — داشبورد طلا و ارز
 
-## Deploy on Cloudflare Pages
+**داشبورد فارسی قیمت زنده و تاریخچه دلار، طلا، سکه و تتر**
 
-1. Push this repo to GitHub.
-2. Cloudflare dashboard → Pages → Create → Connect to Git → select this repo.
-3. Build settings: **no build command**, output directory: `/` (root).
-4. Deploy. Done.
+[![Live Prices](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-telegram.yml/badge.svg)](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-telegram.yml)
+[![TGJU Update](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-data.yml/badge.svg)](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/update-data.yml)
+[![Daily Rebuild](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/daily-rebuild.yml/badge.svg)](https://github.com/mewshiam/Cheghadr-Dashboard/actions/workflows/daily-rebuild.yml)
 
-## Auto data updates
+[🌐 مشاهده داشبورد](https://cheghadr-dashboard.pages.dev) · [📖 مستندات](#-مستندات) · [🚀 استقرار](#-استقرار-روی-cloudflare-pages)
 
-Two GitHub Actions workflows (in `.github/workflows/`):
-- `update-data.yml` — live prices every 2h during market hours (06:00–22:00 Tehran).
-- `daily-rebuild.yml` — full history rebuild daily at 08:15 Tehran.
+</div>
 
-Each push to `data/dashboard_data.json` triggers an automatic Cloudflare Pages redeploy. No approval prompts.
+---
 
-## Local dev
+## ✨ ویژگی‌ها
 
-```bash
-python3 -m http.server 8000
-# open http://localhost:8000
+| ویژگی | توضیح |
+|-------|-------|
+| 💵 قیمت زنده | دلار و تتر از کانال‌های تلگرام، طلا و سکه از tgju.org |
+| 📈 تاریخچه ۱۰ ساله | بیش از ۲۰٬۰۰۰ رکورد روزانه از ۱۳۹۵ |
+| 🪙 تحلیل حباب سکه | ارزش ذاتی، درصد حباب و نمودار تاریخی برای هر سکه |
+| 🌍 انس طلا | آمار شمسی و میلادی با سوییچ تقویم |
+| 📊 تحلیل فصلی | بهترین/بدترین ماه‌ها و فصل‌ها برای هر دارایی |
+| 🎨 تم اختصاصی | هر دارایی رنگ خودش را دارد |
+| 📱 ریسپانسیو | موبایل و دسکتاپ، حالت روشن/تیره خودکار |
+
+## 🗂 ساختار پروژه
+
+```
+├── index.html              # صفحه اصلی
+├── css/style.css           # استایل‌ها و تم‌ها
+├── js/app.js               # منطق داشبورد (بدون وابستگی)
+├── data/
+│   └── dashboard_data.json # داده‌ها (خودکار به‌روز می‌شود)
+├── build_data.py           # اسکریپت جمع‌آوری داده
+├── build_bubble.py         # محاسبه حباب سکه‌ها
+├── build_ons.py            # داده انس طلا
+└── .github/workflows/      # اتوماسیون به‌روزرسانی
+    ├── update-telegram.yml # تلگرام: هر ۱ ساعت
+    ├── update-data.yml     # tgju: هر ۲ ساعت
+    └── daily-rebuild.yml   # بازسازی کامل: روزانه
 ```
 
-## Manual data refresh
+## 📖 مستندات
 
-```bash
-DASHBOARD_DATA_PATH=data/dashboard_data.json python3 build_data.py --live-only  # live only
-DASHBOARD_DATA_PATH=data/dashboard_data.json python3 build_data.py              # full rebuild
-```
+- [منابع داده](docs/DATA_SOURCES.md) — تلگرام، tgju.org و فرمول‌ها
+- [فرکانس به‌روزرسانی](docs/UPDATE_SCHEDULE.md) — زمان‌بندی ورک‌فلوها
+- [توسعه محلی](docs/DEVELOPMENT.md) — اجرای لوکال و تغییر تم
+
+## 🚀 استقرار روی Cloudflare Pages
+
+۱. این ریپو را Fork کنید
+۲. در داشبورد Cloudflare: **Pages** → **Create** → **Connect to Git**
+۳. ریپو را انتخاب کنید — Build command خالی، output روی `/`
+۴. Deploy ✅
+
+دیتا از خود ریپو (raw.githubusercontent) خوانده می‌شود — آپدیت دیتا **بدون ری‌دیپلوی** انجام می‌شود.
+
+## 📄 لایسنس
+
+MIT — آزاد برای استفاده شخصی و تجاری.
+</div>

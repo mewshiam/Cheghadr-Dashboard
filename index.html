@@ -20,6 +20,28 @@
 <main class="content" id="content">
   <section class="card live-card" id="live-card" aria-live="polite"></section>
 
+  <section class="card" id="bubble-card" hidden>
+    <h2>حباب سکه <span class="hint">(اختلاف قیمت بازار با ارزش ذاتی طلا)</span></h2>
+    <div class="bubble-stats" id="bubble-stats"></div>
+    <div class="chart-wrap small"><canvas id="bubble-chart"></canvas></div>
+    <div class="chart-legend" id="bubble-legend"></div>
+  </section>
+
+  <section class="card" id="gold-decomp-card" hidden>
+    <h2>تجزیه قیمت طلای ۱۸ عیار</h2>
+    <div id="decomp-body"></div>
+    <div class="chart-wrap small"><canvas id="premium-chart"></canvas></div>
+    <div class="chart-legend" id="premium-legend"></div>
+  </section>
+
+  <section class="card" id="ons-calendar-card" hidden>
+    <h2>تقویم تحلیل</h2>
+    <div class="cal-toggle" role="tablist" aria-label="انتخاب تقویم">
+      <button class="cal-btn active" data-cal="shamsi">شمسی</button>
+      <button class="cal-btn" data-cal="gregorian">میلادی</button>
+    </div>
+  </section>
+
   <section class="card">
     <h2>نمودار تاریخچه قیمت</h2>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
@@ -31,7 +53,7 @@
     <div class="month-grid" id="month-grid"></div>
   </section>
 
-  <section class="card">
+  <section class="card" id="weekly-card">
     <h2>نمای هفتگی <span class="hint">(۱۲ هفته اخیر)</span></h2>
     <div class="table-wrap">
       <table class="data-table" id="weekly-table">

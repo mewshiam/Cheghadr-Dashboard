@@ -28,4 +28,5 @@ jobs:
           git config user.email "dashboard-bot@users.noreply.github.com"
           git add data/dashboard_data.json
           git diff --cached --quiet || git commit -m "tgju live $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git pull --rebase origin main
           git push

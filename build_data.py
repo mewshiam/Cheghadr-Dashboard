@@ -466,6 +466,15 @@ def main():
             if len(a['daily']) >= 2:
                 prev_closes[key] = a['daily'][-2]['p']
         out['live'] = fetch_live(latest, prev_closes)
+        # keep last-known 3-part dollar values from existing file when fresh lacks them
+        try:
+            old = json.load(open(DATA_PATH)).get('live', {}).get('dollar', {})
+            if 'dollar' in out['live']:
+                for f in ('price_naghdi', 'price_fardaei', 'avg_naghdi'):
+                    if out['live']['dollar'].get(f) is None and old.get(f) is not None:
+                        out['live']['dollar'][f] = old[f]
+        except Exception:
+            pass
         print('live:', {k: (v['price'], v['date'], v['time']) for k, v in out['live'].items()})
     except Exception as e:
         print('live scrape failed:', e)
@@ -494,6 +503,12 @@ if __name__ == '__main__':
                 if len(a['daily']) >= 2:
                     prev_closes[key] = a['daily'][-2]['p']
             fresh = fetch_live(latest, prev_closes, only=only)
+            # keep last-known 3-part dollar values when fresh data lacks them
+            old_dollar = d.get('live', {}).get('dollar', {})
+            if 'dollar' in fresh:
+                for f in ('price_naghdi', 'price_fardaei', 'avg_naghdi'):
+                    if fresh['dollar'].get(f) is None and old_dollar.get(f) is not None:
+                        fresh['dollar'][f] = old_dollar[f]
             d.setdefault('live', {}).update(fresh)
         except Exception as e:
             print('live scrape failed:', e)

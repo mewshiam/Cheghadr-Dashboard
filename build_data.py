@@ -307,10 +307,14 @@ def _dollar_telegram_summary(samples, today):
 
     avg_naghdi = round(sum(p for _, p in naghdi_today) / len(naghdi_today)) if naghdi_today else None
 
-    ref_dt = naghdi_dt or fardaei_dt
+    # main price prefers naghdi (cash), falls back to fardaei
+    main_price = naghdi_price if naghdi_price is not None else fardaei_price
+    main_dt = naghdi_dt if naghdi_price is not None else fardaei_dt
+
+    ref_dt = main_dt
     jy, jm, jd = _gregorian_to_jalali(ref_dt.year, ref_dt.month, ref_dt.day)
     out = {
-        'price': naghdi_price,       # main: cash price
+        'price': main_price,         # main: cash preferred, futures fallback
         'price_naghdi': naghdi_price,
         'price_fardaei': fardaei_price,
         'avg_naghdi': avg_naghdi,    # average of today's cash posts

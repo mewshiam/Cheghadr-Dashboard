@@ -135,17 +135,16 @@
     var srcLabel = live.source === 'telegram' ? 'کانال تلگرام' : 'tgju.org';
 
     var html = '<div class="live-label"><span class="live-dot"></span>قیمت زنده ' + asset.name + '</div>';
-    // dollar 3-part: naghdi / fardaei / avg_naghdi (from Telegram channel)
+    // dollar 3-part: naghdi big, fardaei + avg small below (like before)
     if (state.asset === 'dollar' && live.price_naghdi !== undefined) {
-      html += '<div class="dollar-parts">';
-      html += '<div class="dollar-part"><span class="dp-label">دلار نقدی 💵</span><span class="dp-value">' + fa(live.price_naghdi) + '</span></div>';
+      html += '<div class="live-price">' + fa(live.price_naghdi) + ' <span class="unit">' + asset.unit + '</span></div>';
+      html += '<p class="live-sub">دلار نقدی 💵</p>';
       if (live.price_fardaei !== null && live.price_fardaei !== undefined) {
-        html += '<div class="dollar-part"><span class="dp-label">دلار فردایی ⏳</span><span class="dp-value">' + fa(live.price_fardaei) + '</span></div>';
+        html += '<p class="live-avg">دلار فردایی ⏳: <strong>' + fa(live.price_fardaei) + ' تومان</strong></p>';
       }
       if (live.avg_naghdi !== null && live.avg_naghdi !== undefined) {
-        html += '<div class="dollar-part"><span class="dp-label">میانگین نقدی روز</span><span class="dp-value">' + fa(live.avg_naghdi) + '</span></div>';
+        html += '<p class="live-avg">میانگین نقدی روز: <strong>' + fa(live.avg_naghdi) + ' تومان</strong></p>';
       }
-      html += '</div>';
     } else {
       html += '<div class="live-price">' + fa(live.price) + ' <span class="unit">' + asset.unit + '</span></div>';
     }

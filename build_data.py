@@ -436,8 +436,9 @@ def _fetch_tgju_live(latest_daily, skip_keys):
         cls = re.search(r'class=\\?"(high|low)', tds[1])
         if cls and cls.group(1) == 'low':
             chg = -chg
+        live_time = vals[4] if len(vals) > 4 else ''
         live[key] = {'price': price, 'changePct': round(chg, 2),
-                     'time': vals[4], 'date': resolve_live_date(vals[4], today_j)}
+                     'time': live_time, 'date': resolve_live_date(live_time, today_j) if live_time else today_j}
     # gold ounce (USD, keep decimals — do NOT divide by 10)
     m = re.search(r'<tr[^>]*data-market-row="ons".*?</tr>', html, re.S)
     if m:

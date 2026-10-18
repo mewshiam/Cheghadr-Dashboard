@@ -22,6 +22,8 @@ ASSETS = {
     'rob':     {'symbol': 'rob',             'name': 'ربع سکه',        'unit': 'تومان'},
     'gerami':  {'symbol': 'gerami',          'name': 'سکه گرمی',       'unit': 'تومان'},
     'tether':  {'symbol': 'crypto-tether-irr','name': 'تتر',            'unit': 'تومان'},
+    'oil_brent': {'symbol': 'oil_brent',      'name': 'نفت برنت',        'unit': 'دلار', 'usd': True},
+    'oil_opec':  {'symbol': 'oil_opec',       'name': 'نفت اوپک',        'unit': 'دلار', 'usd': True},
 }
 API_TMPL = 'https://api.tgju.org/v1/market/indicator/summary-table-data/{symbol}'
 import os
@@ -38,13 +40,16 @@ def fetch(symbol):
     with urllib.request.urlopen(req, timeout=90) as r:
         return json.load(r)['data']
 
-def build_asset(symbol):
+def build_asset(symbol, usd=False):
     days = []
     for row in fetch(symbol):
         jy, jm, jd = map(int, row[7].split('/'))
         if jy < MIN_YEAR:
             continue
-        p = num(row[3]) // 10  # rial -> toman
+        if usd:
+            p = round(float(re.sub(r'[^\d.]', '', str(row[3]))), 2)  # USD, keep decimals
+        else:
+            p = num(row[3]) // 10  # rial -> toman
         if p > 0:
             days.append((jy, jm, jd, p))
     days.sort()
@@ -420,7 +425,10 @@ def _fetch_tgju_live(latest_daily, skip_keys):
         tds = re.findall(r'<td[^>]*>(.*?)</td>', m.group(0), re.S)
         vals = [re.sub(r'<[^>]+>', '', td).strip() for td in tds[:5]]
         try:
-            price = num(vals[0]) // 10  # rial -> toman
+            if cfg.get('usd'):
+                price = round(float(vals[0].replace(',', '')), 2)  # USD, keep decimals
+            else:
+                price = num(vals[0]) // 10  # rial -> toman
         except (ValueError, IndexError):
             continue  # empty/unparseable cell (e.g. early-morning page) — keep old live value
         pctm = re.search(r'([\d.]+)%', vals[1])
@@ -453,7 +461,7 @@ def main():
     latest = ''
     for key, cfg in ASSETS.items():
         print(f'building {key} ({cfg["name"]})...', flush=True)
-        a = build_asset(cfg['symbol'])
+        a = build_asset(cfg['symbol'], usd=cfg.get('usd', False))
         a['name'] = cfg['name']
         a['unit'] = cfg['unit']
         out['assets'][key] = a

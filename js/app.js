@@ -14,7 +14,7 @@
   var COIN_KEYS = ['sekee', 'sekeb', 'nim', 'rob', 'gerami'];
   var SHAMSI_MONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
   var GREG_MONTHS_FA = ['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه','اوت','سپتامبر','اکتبر','نوامبر','دسامبر'];
-  var state = { data: null, asset: 'dollar', onsCal: 'shamsi' };
+  var state = { data: null, asset: 'dollar', onsCal: 'shamsi', oilType: 'oil_brent' };
 
   /* ---------- formatting ---------- */
   function fa(n) {
@@ -30,6 +30,11 @@
     if (x === null || x === undefined || isNaN(x)) return '—';
     var sign = x > 0 ? '+' : '';
     return sign + Number(x).toLocaleString('fa-IR', { maximumFractionDigits: 2 }) + '٪';
+  }
+  function faUSD(n) {
+    // USD prices with 2 decimals: 109.86 -> ۱۰۹٫۸۶
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
   function dirClass(x) { return x > 0 ? 'up' : (x < 0 ? 'down' : ''); }
   function el(id) { return document.getElementById(id); }
@@ -91,6 +96,16 @@
       ob.addEventListener('click', function () { selectAsset('ons'); });
       bar.appendChild(ob);
     }
+    // 10th tab: oil (Brent + OPEC)
+    if (state.data.assets.oil_brent || state.data.assets.oil_opec) {
+      var oilb = document.createElement('button');
+      oilb.className = 'asset-tab' + (state.asset === 'oil' ? ' active' : '');
+      oilb.type = 'button';
+      oilb.textContent = 'نفت';
+      oilb.dataset.asset = 'oil';
+      oilb.addEventListener('click', function () { selectAsset('oil'); });
+      bar.appendChild(oilb);
+    }
   }
 
   function selectAsset(key) {
@@ -102,10 +117,13 @@
     el('bubble-card').hidden = true;
     el('gold-decomp-card').hidden = true;
     el('ons-calendar-card').hidden = true;
+    el('oil-type-card').hidden = true;
     el('weekly-card').hidden = false;
 
     if (key === 'ons') {
       renderOnsTab();
+    } else if (key === 'oil') {
+      renderOilTab();
     } else {
       var asset = state.data.assets[key];
       var live = state.data.live[key];
@@ -643,5 +661,72 @@
         'میانگین ' + fa(s.years) + ' سال</div></div>';
     });
     el('seasonal').innerHTML = html || '<p>داده‌ای نیست.</p>';
+  }
+
+  /* ---------- oil tab (10th): Brent + OPEC ---------- */
+  var OIL_TYPES = [
+    { key: 'oil_brent', label: 'برنت' },
+    { key: 'oil_opec', label: 'اوپک' }
+  ];
+
+  function renderOilTab() {
+    el('oil-type-card').hidden = false;
+
+    // oil type toggle wiring (like شمسی/میلادی)
+    var btns = document.querySelectorAll('.oil-btn');
+    btns.forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.oil === state.oilType);
+      btn.onclick = function () {
+        if (state.oilType !== btn.dataset.oil) {
+          state.oilType = btn.dataset.oil;
+          renderOilTab();
+        }
+      };
+    });
+
+    // live cards for both oil types
+    renderOilLive();
+
+    // detailed views for the selected oil type (reuse standard renderers)
+    var asset = state.data.assets[state.oilType];
+    if (!asset) return;
+    drawChart(asset);
+    renderMonthGrid(asset);
+    renderWeekly(asset);
+    renderCompare(asset);
+    renderTop5(asset);
+    renderSeasonal(asset);
+  }
+
+  function renderOilLive() {
+    var box = el('live-card');
+    var html = '<div class="live-label"><span class="live-dot"></span>قیمت زنده نفت</div>';
+    html += '<div class="oil-live-grid">';
+    OIL_TYPES.forEach(function (t) {
+      var a = state.data.assets[t.key];
+      var live = state.data.live[t.key];
+      html += oilLiveCard(t.label, a, live);
+    });
+    html += '</div>';
+    box.innerHTML = html;
+  }
+
+  function oilLiveCard(label, asset, live) {
+    var name = (asset && asset.name) || ('نفت ' + label);
+    if (!live || live.price === null || live.price === undefined) {
+      return '<div class="oil-live-card"><div class="oil-name">' + name + '</div>' +
+        '<div class="live-price">—</div></div>';
+    }
+    var chgCls = live.changePct > 0 ? 'up' : (live.changePct < 0 ? 'down' : 'flat');
+    var arrow = live.changePct > 0 ? '▲ ' : (live.changePct < 0 ? '▼ ' : '');
+    var html = '<div class="oil-live-card">';
+    html += '<div class="oil-name">' + name + '</div>';
+    html += '<div class="live-price">$' + faUSD(live.price) + ' <span class="unit">دلار</span></div>';
+    html += '<div><span class="live-change ' + chgCls + '">' + arrow + faPct(live.changePct) + '</span></div>';
+    html += '<div class="live-meta"><span>به‌روزرسانی ' + (live.date || '') +
+      (live.time ? '، ساعت ' + live.time : '') + '</span>' +
+      '<span class="source-badge">tgju.org</span></div>';
+    html += '</div>';
+    return html;
   }
 })();

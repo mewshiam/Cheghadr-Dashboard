@@ -475,6 +475,14 @@ def main():
             if len(a['daily']) >= 2:
                 prev_closes[key] = a['daily'][-2]['p']
         out['live'] = fetch_live(latest, prev_closes)
+        # preserve ALL old live entries when fresh fetch misses them (e.g. market closed)
+        try:
+            _old_live = json.load(open(DATA_PATH)).get('live', {})
+            for _k, _v in _old_live.items():
+                if _k not in out['live']:
+                    out['live'][_k] = _v
+        except Exception:
+            pass
         # keep last-known 3-part dollar values from existing file when fresh lacks them
         try:
             old = json.load(open(DATA_PATH)).get('live', {}).get('dollar', {})

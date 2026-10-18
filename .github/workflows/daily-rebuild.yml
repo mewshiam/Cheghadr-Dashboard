@@ -17,6 +17,11 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Update live prices first
+        env:
+          DASHBOARD_DATA_PATH: data/dashboard_data.json
+        run: python3 build_data.py --live-only || true
+
       - name: Rebuild full history
         env:
           DASHBOARD_DATA_PATH: data/dashboard_data.json

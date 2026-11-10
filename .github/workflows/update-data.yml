@@ -2,8 +2,10 @@ name: Update live prices (tgju)
 
 on:
   schedule:
-    # Every 2 hours during Tehran market hours (06:00-22:00 IRST = 02:30-18:30 UTC)
-    - cron: '48 2,4,6,8,10,12,14,16,18 * * *'
+    # Every 10 min, 06:00-24:00 Tehran (02:30-20:30 UTC), offset +5 min from Telegram job
+    - cron: '35,45,55 2 * * *'
+    - cron: '5,15,25,35,45,55 3-19 * * *'
+    - cron: '5,15,25 20 * * *'
   workflow_dispatch:
 
 jobs:

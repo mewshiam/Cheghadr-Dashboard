@@ -25,6 +25,9 @@ ASSETS = {
     'oil_brent': {'symbol': 'oil_brent',      'name': 'نفت برنت',        'unit': 'دلار', 'usd': True},
     'oil_opec':  {'symbol': 'oil_opec',       'name': 'نفت اوپک',        'unit': 'دلار', 'usd': True},
 }
+
+OIL_KEYS = {'oil_brent', 'oil_opec'}  # Brent + OPEC — refreshed on the 24/7 UTC oil schedule
+
 API_TMPL = 'https://api.tgju.org/v1/market/indicator/summary-table-data/{symbol}'
 import os
 DATA_PATH = os.environ.get('DASHBOARD_DATA_PATH', '/home/hatch/workspace/dollar-dashboard/dashboard_data.json')
@@ -377,7 +380,8 @@ def _gregorian_to_jalali(gy, gm, gd):
 def fetch_live(latest_daily, prev_closes=None, only=None):
     """Live prices. Dollar & tether prefer Telegram channels (5-sample daily
     average); others scraped from tgju.org main page. Returns dict key->info.
-    only='telegram' skips tgju; only='tgju' skips Telegram."""
+    only='telegram' skips tgju; only='tgju' skips Telegram;
+    only='oil' refreshes only Brent/OPEC from tgju."""
     prev_closes = prev_closes or {}
     live = {}
     # --- Telegram first (dollar, tether) ---
@@ -401,12 +405,14 @@ def fetch_live(latest_daily, prev_closes=None, only=None):
         live[key] = entry
     # --- tgju main page for the rest (and as fallback) ---
     # --- tgju main page for the rest (and as fallback) ---
-    if only in (None, 'tgju'):
-        live.update(_fetch_tgju_live(latest_daily, set(live)))
+    if only in (None, 'tgju', 'oil'):
+        live.update(_fetch_tgju_live(latest_daily, set(live),
+                                     only_keys=OIL_KEYS if only == 'oil' else None))
     return live
 
-def _fetch_tgju_live(latest_daily, skip_keys):
-    """Scrape tgju.org main page. skip_keys: already covered (e.g. by Telegram)."""
+def _fetch_tgju_live(latest_daily, skip_keys, only_keys=None):
+    """Scrape tgju.org main page. skip_keys: already covered (e.g. by Telegram).
+    only_keys: when set, refresh only those asset keys (used by the oil-only run)."""
     req = urllib.request.Request('https://www.tgju.org/', headers={
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
     with urllib.request.urlopen(req, timeout=60) as r:
@@ -418,6 +424,8 @@ def _fetch_tgju_live(latest_daily, skip_keys):
     for key, cfg in ASSETS.items():
         if key in skip_keys or key in live or key in TELEGRAM_CHANNELS:
             continue  # already covered by Telegram
+        if only_keys is not None and key not in only_keys:
+            continue  # oil-only run: skip non-oil assets
         m = re.search(r'<tr[^>]*data-market-row="' + cfg['symbol'] + r'".*?</tr>',
                       html, re.S)
         if not m:
@@ -441,7 +449,7 @@ def _fetch_tgju_live(latest_daily, skip_keys):
                      'time': live_time, 'date': resolve_live_date(live_time, today_j) if live_time else today_j}
     # gold ounce (USD, keep decimals — do NOT divide by 10)
     m = re.search(r'<tr[^>]*data-market-row="ons".*?</tr>', html, re.S)
-    if m:
+    if m and only_keys is None:
         tds = re.findall(r'<td[^>]*>(.*?)</td>', m.group(0), re.S)
         vals = [re.sub(r'<[^>]+>', '', td).strip() for td in tds[:5]]
         try:
@@ -506,7 +514,7 @@ if __name__ == '__main__':
     import sys
     if '--live-only' in sys.argv:
         # Fast mode: only refresh live prices, report if anything changed
-        # --only=telegram|tgju limits to one source (merges, doesn't wipe others)
+        # --only=telegram|tgju|oil limits to one source (merges, doesn't wipe others)
         only = None
         for a in sys.argv:
             if a.startswith('--only='):

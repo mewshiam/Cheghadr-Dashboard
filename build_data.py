@@ -185,6 +185,36 @@ def resolve_live_date(stamp, today_j):
             return f'{y}/{mon:02d}/{d:02d}'
     return today_j
 
+FA_DIGITS = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
+CLOCK_RE = re.compile(r'([۰-۹0-9]{1,2}):([۰-۹0-9]{2})(?::([۰-۹0-9]{2}))?')
+
+def fa_clock(dt):
+    """A datetime -> 'HH:MM:SS' clock time with Persian digits (Tehran)."""
+    return dt.strftime('%H:%M:%S').translate(FA_DIGITS)
+
+def normalize_live_time(stamp, fallback_dt, old_time=''):
+    """Normalize a live time to 'HH:MM:SS' in Persian digits.
+
+    Every live entry must carry the same time shape: the site renders
+    'به‌روزرسانی {date}، ساعت {time}', so a date string or a bare HH:MM
+    in this field shows up wrong next to the other cards. Clock stamps
+    are kept (seconds added when missing). Date-only stamps ('۱۹ آبان',
+    'امروز', 'دیروز') and empty stamps carry no clock time, so keep the
+    previously stored canonical time when there is one; otherwise use the
+    fetch time. Keeping the stored time is what stops a stale price from
+    being rewritten on every run.
+    """
+    s = (stamp or '').strip()
+    m = CLOCK_RE.fullmatch(s)
+    if m:
+        h = int(m.group(1))
+        mi = int(m.group(2))
+        sec = int(m.group(3)) if m.group(3) else 0
+        return f'{h:02d}:{mi:02d}:{sec:02d}'.translate(FA_DIGITS)
+    if old_time and CLOCK_RE.fullmatch(old_time.strip()):
+        return old_time.strip()
+    return fa_clock(fallback_dt)
+
 TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 # Telegram live sources: channel URL per asset key
 TELEGRAM_CHANNELS = {
@@ -282,7 +312,7 @@ def fetch_telegram_live():
             'price': price,          # latest tick (main display)
             'avg_price': avg_price,  # day's average (secondary display)
             'samples': len(picked),
-            'time': latest_dt.strftime('%H:%M'),
+            'time': fa_clock(latest_dt),
             'date_j': f'{jy}/{jm:02d}/{jd:02d}',
             'source': 'telegram',
         }
@@ -327,7 +357,7 @@ def _dollar_telegram_summary(samples, today):
         'price_fardaei': fardaei_price,
         'avg_naghdi': avg_naghdi,    # average of today's cash posts
         'samples': len(naghdi_today) + len(fardaei_today),
-        'time': ref_dt.strftime('%H:%M'),
+        'time': fa_clock(ref_dt),
         'date_j': f'{jy}/{jm:02d}/{jd:02d}',
         'source': 'telegram',
     }
@@ -377,11 +407,13 @@ def _gregorian_to_jalali(gy, gm, gd):
         return (jy, jm_, jd_)
     return d2j(g2d(gy, gm, gd))
 
-def fetch_live(latest_daily, prev_closes=None, only=None):
+def fetch_live(latest_daily, prev_closes=None, only=None, old_live=None):
     """Live prices. Dollar & tether prefer Telegram channels (5-sample daily
     average); others scraped from tgju.org main page. Returns dict key->info.
     only='telegram' skips tgju; only='tgju' skips Telegram;
-    only='oil' refreshes only Brent/OPEC from tgju."""
+    only='oil' refreshes only Brent/OPEC from tgju.
+    old_live: the stored live dict, so date-only tgju stamps can keep the
+    previously stored canonical time instead of churning every run."""
     prev_closes = prev_closes or {}
     live = {}
     # --- Telegram first (dollar, tether) ---
@@ -407,17 +439,21 @@ def fetch_live(latest_daily, prev_closes=None, only=None):
     # --- tgju main page for the rest (and as fallback) ---
     if only in (None, 'tgju', 'oil'):
         live.update(_fetch_tgju_live(latest_daily, set(live),
-                                     only_keys=OIL_KEYS if only == 'oil' else None))
+                                     only_keys=OIL_KEYS if only == 'oil' else None,
+                                     old_live=old_live or {}))
     return live
 
-def _fetch_tgju_live(latest_daily, skip_keys, only_keys=None):
+def _fetch_tgju_live(latest_daily, skip_keys, only_keys=None, old_live=None):
     """Scrape tgju.org main page. skip_keys: already covered (e.g. by Telegram).
-    only_keys: when set, refresh only those asset keys (used by the oil-only run)."""
+    only_keys: when set, refresh only those asset keys (used by the oil-only run).
+    old_live: stored live dict for keeping canonical times on date-only stamps."""
     req = urllib.request.Request('https://www.tgju.org/', headers={
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
     with urllib.request.urlopen(req, timeout=60) as r:
         html = r.read().decode('utf-8', errors='ignore')
     live = {}
+    old_live = old_live or {}
+    fetch_dt = datetime.now(TEHRAN_TZ)
     ly, lm, ld = map(int, latest_daily.split('/'))
     ty, tm, td = jalali_plus_one(ly, lm, ld)
     today_j = f'{ty}/{tm:02d}/{td:02d}'
@@ -444,9 +480,11 @@ def _fetch_tgju_live(latest_daily, skip_keys, only_keys=None):
         cls = re.search(r'class=\\?"(high|low)', tds[1])
         if cls and cls.group(1) == 'low':
             chg = -chg
-        live_time = vals[4] if len(vals) > 4 else ''
+        raw_stamp = vals[4] if len(vals) > 4 else ''
+        live_time = normalize_live_time(raw_stamp, fetch_dt,
+                                        old_live.get(key, {}).get('time', ''))
         live[key] = {'price': price, 'changePct': round(chg, 2),
-                     'time': live_time, 'date': resolve_live_date(live_time, today_j) if live_time else today_j}
+                     'time': live_time, 'date': resolve_live_date(raw_stamp, today_j) if raw_stamp else today_j}
     # gold ounce (USD, keep decimals — do NOT divide by 10)
     m = re.search(r'<tr[^>]*data-market-row="ons".*?</tr>', html, re.S)
     if m and only_keys is None:
@@ -463,7 +501,8 @@ def _fetch_tgju_live(latest_daily, skip_keys, only_keys=None):
             ochg = -ochg
         if oprice > 0:
             live['ons'] = {'price': round(oprice, 2), 'changePct': round(ochg, 2),
-                           'time': vals[4], 'date': resolve_live_date(vals[4], today_j), 'unit': 'usd'}
+                           'time': normalize_live_time(vals[4], fetch_dt, old_live.get('ons', {}).get('time', '')),
+                           'date': resolve_live_date(vals[4], today_j), 'unit': 'usd'}
     return live
 def main():
     out = {'assets': {}, 'meta': {'source': 'tgju.org API (direct scrape)'}}
@@ -482,7 +521,11 @@ def main():
         for key, a in out['assets'].items():
             if len(a['daily']) >= 2:
                 prev_closes[key] = a['daily'][-2]['p']
-        out['live'] = fetch_live(latest, prev_closes)
+        try:
+            _old_live = json.load(open(DATA_PATH)).get('live', {})
+        except Exception:
+            _old_live = {}
+        out['live'] = fetch_live(latest, prev_closes, old_live=_old_live)
         # preserve ALL old live entries when fresh fetch misses them (e.g. market closed)
         try:
             _old_live = json.load(open(DATA_PATH)).get('live', {})
@@ -527,7 +570,7 @@ if __name__ == '__main__':
             for key, a in d['assets'].items():
                 if len(a['daily']) >= 2:
                     prev_closes[key] = a['daily'][-2]['p']
-            fresh = fetch_live(latest, prev_closes, only=only)
+            fresh = fetch_live(latest, prev_closes, only=only, old_live=d.get('live', {}))
             # keep last-known 3-part dollar values when fresh data lacks them
             old_dollar = d.get('live', {}).get('dollar', {})
             if 'dollar' in fresh:

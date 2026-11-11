@@ -8,9 +8,15 @@ on:
     - cron: '0,10,20 20 * * *'
   workflow_dispatch:
 
+# All live-update workflows share one group so they never touch
+# dashboard_data.json at the same time. cancel-in-progress: false means a
+# running update finishes; queue: max (GitHub docs: up to 100 pending runs)
+# means burst arrivals wait in line instead of cancelling the pending run
+# (the default is only ONE pending run per group).
 concurrency:
   group: dashboard-live
   cancel-in-progress: false
+  queue: max
 
 jobs:
   update:
@@ -29,10 +35,28 @@ jobs:
         run: python3 build_data.py --live-only --only=telegram
 
       - name: Commit and push if changed
+        env:
+          DASHBOARD_DATA_PATH: data/dashboard_data.json
         run: |
           git config user.name "dashboard-bot"
           git config user.email "dashboard-bot@users.noreply.github.com"
-          git add data/dashboard_data.json
-          git diff --cached --quiet || git commit -m "telegram live $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git pull --rebase origin main
-          git push
+          # Self-healing push: if another run landed first, drop our commit,
+          # regenerate the live values on top of the newest main and retry.
+          # (build_data.py --live-only merges fresh values into the file, so
+          # regenerating never loses the other run's updates.)
+          pushed=false
+          for i in 1 2 3; do
+            git add data/dashboard_data.json
+            git diff --cached --quiet || git commit -m "telegram live $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            if git pull --rebase origin main && git push; then
+              pushed=true
+              echo "pushed on attempt $i"
+              break
+            fi
+            echo "attempt $i: push conflicted, regenerating on latest main..."
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
+            python3 build_data.py --live-only --only=telegram
+            sleep 5
+          done
+          $pushed || { echo "ERROR: could not push after 3 attempts"; exit 1; }
